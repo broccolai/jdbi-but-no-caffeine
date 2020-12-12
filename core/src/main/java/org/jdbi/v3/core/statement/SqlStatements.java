@@ -24,12 +24,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.jdbi.v3.core.config.JdbiConfig;
 import org.jdbi.v3.meta.Beta;
 
@@ -53,7 +54,7 @@ public final class SqlStatements implements JdbiConfig<SqlStatements> {
         sqlParser = new ColonPrefixSqlParser();
         sqlLogger = SqlLogger.NOP_SQL_LOGGER;
         queryTimeout = null;
-        templateCache = Caffeine.newBuilder().maximumSize(1_000).build();
+        templateCache = CacheBuilder.newBuilder().maximumSize(1000).build();
     }
 
     private SqlStatements(SqlStatements that) {
@@ -152,7 +153,7 @@ public final class SqlStatements implements JdbiConfig<SqlStatements> {
      * @return this
      */
     @Beta
-    public SqlStatements setTemplateCache(Caffeine<Object, Object> caffeineSpec) {
+    public SqlStatements setTemplateCache(CacheBuilder<Object, Object> caffeineSpec) {
         templateCache = caffeineSpec.build();
         return this;
     }
@@ -267,14 +268,16 @@ public final class SqlStatements implements JdbiConfig<SqlStatements> {
 
     String preparedRender(String template, StatementContext ctx) {
         try {
+            AbstractMap.SimpleEntry<TemplateEngine, String> entry = new AbstractMap.SimpleEntry<>(templateEngine, template);
+
             return Optional.ofNullable(
                     templateCache.get(
-                            new AbstractMap.SimpleEntry<>(templateEngine, template),
-                            e -> e.getKey().parse(e.getValue(), ctx.getConfig())
+                            entry,
+                            () -> entry.getKey().parse(entry.getValue(), ctx.getConfig())
                                                .orElse(null))) // no parse -> no cache
                 .orElse(cx -> templateEngine.render(template, cx)) // fall-back to old behavior
                 .apply(ctx);
-        } catch (final IllegalArgumentException e) {
+        } catch (final IllegalArgumentException | ExecutionException e) {
             throw new UnableToCreateStatementException("Exception rendering SQL template", e, ctx);
         }
     }

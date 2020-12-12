@@ -674,6 +674,7 @@
                         </dependency>
                     </dependencies>
                     <configuration combine.children="append">
+                        <skip>true</skip>
                         <includeFilterFile>policy/spotbugs-include.xml</includeFilterFile>
                         <excludeFilterFile>policy/spotbugs-exclude.xml</excludeFilterFile>
                     </configuration>

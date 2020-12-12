@@ -13,7 +13,7 @@
  */
 package org.jdbi.v3.core.statement;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.cache.CacheBuilder;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.Token;
 import org.jdbi.v3.core.internal.lexer.HashStatementLexer;
@@ -38,7 +38,7 @@ public class HashPrefixSqlParser extends CachingSqlParser {
     public HashPrefixSqlParser() {}
 
     @Beta
-    public HashPrefixSqlParser(final Caffeine<Object, Object> cache) {
+    public HashPrefixSqlParser(final CacheBuilder<Object, Object> cache) {
         super(cache);
     }
 

@@ -13,28 +13,31 @@
  */
 package org.jdbi.v3.core.statement;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import java.util.concurrent.ExecutionException;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.CacheStats;
+import com.google.common.cache.LoadingCache;
 import org.jdbi.v3.meta.Beta;
 
 abstract class CachingSqlParser implements SqlParser {
     private final LoadingCache<String, ParsedSql> parsedSqlCache;
 
     CachingSqlParser() {
-        this(Caffeine.newBuilder()
+        this(CacheBuilder.newBuilder()
                      .maximumSize(1_000));
     }
 
-    CachingSqlParser(Caffeine<Object, Object> cache) {
-        parsedSqlCache = cache.build(this::internalParse);
+    CachingSqlParser(CacheBuilder<Object, Object> cache) {
+        parsedSqlCache = cache.build(new Loader());
     }
 
     @Override
     public ParsedSql parse(String sql, StatementContext ctx) {
         try {
             return parsedSqlCache.get(sql);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | ExecutionException e) {
             throw new UnableToCreateStatementException("Exception parsing for named parameter replacement", e, ctx);
         }
     }
@@ -45,4 +48,12 @@ abstract class CachingSqlParser implements SqlParser {
     }
 
     abstract ParsedSql internalParse(String sql);
+
+    class Loader extends CacheLoader<String, ParsedSql> {
+
+        @Override
+        public ParsedSql load(String o) throws Exception {
+            return internalParse(o);
+        }
+    }
 }
